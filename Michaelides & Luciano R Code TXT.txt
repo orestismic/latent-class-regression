@@ -1,0 +1,581 @@
+### MICHAELIDES & LUCIANO R SCRIPT ###################################
+
+#### SETUP #############################################################
+#install.packages("psych")
+#install.packages("foreign")
+#install.packages("dplyr")
+#install.packages("poLCA")
+#install.packages("ggplot2")
+
+library(psych); library(foreign); library(dplyr)
+#setwd()
+ncdssav <- read.spss("ncds0123.sav", to.data.frame=TRUE)
+
+#### PREDICTORS #########################################################
+predictors <- subset(x=ncdssav,
+                     select=c("n492", "n537", "n660",
+                              "n497", "n186", "n187", "n622",
+                              "n179", "n180"))
+unique(predictors$n622)
+predictors$n622 <- factor(predictors$n622, levels=c("Male", "Female"),
+                          ordered=TRUE) 
+
+#mother's husband's social class
+unique(predictors$n492)
+table(predictors$n492)
+predictors$n492[predictors$n492=="Unemployed,sick"] <- NA
+predictors$n492[predictors$n492=="Retired"] <- NA
+predictors$n492[predictors$n492=="Students"] <- NA
+predictors$n492 <- recode(predictors$n492,
+                          "Dead or away"="Single,no husbnd")
+predictors$n492 <- factor(predictors$n492, levels=c("V", "IV", "III",
+                                                    "II", "I",
+                                                    "Single,no husbnd"),
+                          ordered=TRUE)                             
+
+
+#mother's father's social class
+unique(predictors$n660)
+table(predictors$n660)
+predictors$n660[predictors$n660=="No information"] <- NA
+predictors$n660 <- recode(predictors$n660,
+                          "III non manual"="II",
+                          "III manual"="III")
+predictors$n660 <- factor(predictors$n660, levels=c("V", "IV", "III",
+                                                    "II", "I"),
+                          ordered=TRUE)
+
+
+#was mum at school after min leaving age
+unique(predictors$n537)
+table(predictors$n537)
+predictors$n537[predictors$n537=="24-min.age 15yrs"] <- NA 
+predictors$n537 <- recode(predictors$n537,
+                          "Did not stay-25+"="Did not stay",
+                          "Did not stay-24-"="Did not stay",
+                          "Did stay-25 plus"="Stayed",
+                          "Did stay-24under"="Stayed",
+                          "Did stay at sch."="Stayed")
+predictors$n537 <- factor(predictors$n537, levels=c("Did not stay","Stayed"))
+
+
+#gestation period (days)
+unique(predictors$n497)
+predictors$n497 <- as.numeric(as.character(predictors$n497))
+min(predictors$n497, na.rm=TRUE)
+max(predictors$n497, na.rm=TRUE)
+hist(predictors$n497)
+describe(predictors$n497)
+
+##for categorical gestation
+predictors$n497F <- predictors$n497
+for(i in (1:length(predictors$n497))) {
+  if(is.na(predictors$n497[i])){
+    predictors$n497F[i]<-NA
+  } else {
+    if(predictors$n497[i]<=260){
+      predictors$n497F[i]="preterm"
+    } else {
+      if(predictors$n497[i]>260){
+        predictors$n497F[i]="average"
+      } 
+    }
+  }
+}
+
+predictors$n497F <- factor(predictors$n497F, levels=c("average", "preterm"),
+                           ordered=TRUE)
+predictors <- subset(predictors, select=-c(n497))
+
+
+#mother's book reading
+unique(predictors$n186)
+table(predictors$n186)
+predictors$n186[predictors$n186=="DK,Inapplicable"] <- NA 
+predictors$n186 <- factor(predictors$n186, levels=c("Hardly ever",
+                                                    "Yes occasionally",
+                                                    "Yes most weeks"),
+                          ordered=TRUE)
+
+
+#father's book reading
+unique(predictors$n187)
+table(predictors$n187)
+predictors$n187[predictors$n187=="DK,Inapplicable"] <- NA 
+predictors$n187 <- factor(predictors$n187, levels=c("Hardly ever",
+                                                    "Yes occasionally",
+                                                    "Yes most weeks"),
+                          ordered=TRUE)
+
+#mother reading to child
+unique(predictors$n179)
+table(predictors$n179)
+predictors$n179[predictors$n179=="DK,inapplicable"] <- NA 
+predictors$n179 <- factor(predictors$n179, levels=c("Hardly ever",
+                                                    "Yes,occasionally",
+                                                    "Yes,every week"),
+                          ordered=TRUE)
+
+#father reading to child
+unique(predictors$n180)
+table(predictors$n180)
+predictors$n180[predictors$n180=="DK,inapplicable"] <- NA 
+predictors$n180 <- factor(predictors$n180, levels=c("Hardly ever",
+                                                    "Yes,occasionally",
+                                                    "Yes,every week"),
+                          ordered=TRUE)
+
+
+
+#### OUTCOMES #########################################################
+outcomes <- subset(x=ncdssav,
+                   select=c("n88", "n89", "n385", "n386", "n226", "n68",
+                            "n92", "n383", "n879", "n884", "n885", "n1544",
+                            "n1548", "n1551", "n1268", "n1270", "n923",
+                            "n1543", "n914", "n917"))
+
+unique(outcomes$n88)
+outcomes$n88[outcomes$n88=="Dont know"] <- NA
+outcomes$n88 <- factor(outcomes$n88, levels=c("Does not apply",
+                                              "Applies somewhat",
+                                              "Cert.applies"),
+                       ordered=TRUE)
+
+unique(outcomes$n89)
+outcomes$n89[outcomes$n89=="Dont know"] <- NA
+outcomes$n89 <- factor(outcomes$n89, levels=c("Does not apply",
+                                              "Applies somewhat",
+                                              "Cert.applies"),
+                       ordered=TRUE)
+
+unique(outcomes$n385)
+outcomes$n385[outcomes$n385=="DK,unable to test"] <- NA
+outcomes$n385 <- recode(outcomes$n385, "Slight"="Yes",
+                        "Moderate"="Yes",
+                        "Severe"="Yes")
+
+unique(outcomes$n386)
+outcomes$n386[outcomes$n386=="DK,unable to test"] <- NA
+outcomes$n386[outcomes$n386=="Unintelligible"] <- "Poor intelligib"
+outcomes$n386 <- factor(outcomes$n386, levels=c("Good intelligib",
+                                                "Mainly intelligib",
+                                                "Poor intelligib"),
+                        ordered=TRUE)
+
+unique(outcomes$n226)
+outcomes$n226[outcomes$n226=="Dont know"] <- NA
+outcomes$n226 <- factor(outcomes$n226, levels=c("No", "Yes"))
+
+unique(outcomes$n68)
+outcomes$n68 <- factor(outcomes$n68, levels=c("Avid reader", "Above average",
+                                              "Average reader",
+                                              "Poor reader", "Non reader"),
+                       ordered=TRUE)
+
+unique(outcomes$n92)
+outcomes$n92 <- as.numeric(as.character(outcomes$n92))
+hist(outcomes$n92)
+describe(outcomes$n92)
+
+unique(outcomes$n383)
+outcomes$n383 <- as.numeric(as.character(outcomes$n383))
+hist(outcomes$n383)
+
+unique(outcomes$n879)
+outcomes$n879 <- factor(outcomes$n879, levels=c("Exceptional",
+                                                "Above average", "Average",
+                                                "Below average",
+                                                "Very limited"),
+                        ordered=TRUE)
+
+unique(outcomes$n884)
+outcomes$n884[outcomes$n884=="Dont know"] <- NA
+outcomes$n884 <- factor(outcomes$n884, levels=c("Not at all", "Somewhat",
+                                                "Cert. applies"),
+                        ordered=TRUE)
+
+unique(outcomes$n885)
+outcomes$n885[outcomes$n885=="Dont know"] <- NA
+outcomes$n885 <- factor(outcomes$n885, levels=c("Not at all", "Somewhat",
+                                                "Cert. applies"),
+                        ordered=TRUE)
+
+unique(outcomes$n1544)
+outcomes$n1544[outcomes$n1544=="Dont know"] <- NA
+outcomes$n1544 <- recode(outcomes$n1544, "Stammer,stutter"="Stutter or other",
+                         "Some abnormality"="Stutter or other")
+
+unique(outcomes$n1548)
+outcomes$n1548 <- as.numeric(as.character(outcomes$n1548))
+
+unique(outcomes$n1551)
+outcomes$n1551 <- as.numeric(as.character(outcomes$n1551))
+
+unique(outcomes$n1268)
+outcomes$n1268[outcomes$n1268=="Dont know"] <- NA
+outcomes$n1268 <- recode(outcomes$n1268, "Yes, a stammer"="Defect",
+                         "Yes, has it now"="Defect")
+outcomes$n1268 <- factor(outcomes$n1268, levels=c("Never",
+                                                  "In the past only",
+                                                  "Defect"),
+                         ordered=TRUE)
+
+unique(outcomes$n1270)
+outcomes$n1270[outcomes$n1270=="Dont know"] <- NA
+outcomes$n1270 <- factor(outcomes$n1270, levels=c("No",
+                                                  "In the past only",
+                                                  "Yes, has it now"),
+                         ordered=TRUE)
+
+unique(outcomes$n923)
+outcomes$n923 <- as.numeric(as.character(outcomes$n923))
+
+unique(outcomes$n1543)
+outcomes$n1543 <- as.numeric(as.character(outcomes$n1543))
+
+unique(outcomes$n914)
+outcomes$n914 <- as.numeric(as.character(outcomes$n914))
+
+unique(outcomes$n917)
+outcomes$n917 <- as.numeric(as.character(outcomes$n917))
+
+
+
+#### Categorising continuous variables #############################
+
+outcomesCat <- outcomes
+
+##n92 southgate score (age 7)
+hist(outcomesCat$n92)
+describe(outcomesCat$n92)
+quantile(na.omit(outcomesCat$n92), c(0.25,0.5,0.7))
+ecdf(na.omit(outcomesCat$n92))(c(20,28))
+length(which(outcomesCat$n92==30))/length(outcomesCat$n92)
+
+outcomesCat$n92F <- outcomesCat$n92
+
+for(i in (1:length(outcomesCat$n92))) {
+  if(is.na(outcomesCat$n92[i])){
+    outcomesCat$n92F[i]<-NA
+  } else {
+    if(outcomesCat$n92[i]<=20){
+      outcomesCat$n92F[i]="poor"
+    } else {
+      if(with(outcomesCat, n92[i]>20 & n92[i]<=28)){
+        outcomesCat$n92F[i]="average"
+      } else {
+        if(outcomesCat$n92[i]>28){
+          outcomesCat$n92F[i]="great"
+        }
+      }
+    }
+  }
+}
+
+outcomesCat$n92F <- factor(outcomesCat$n92F, levels=c("great",
+                                                      "average",
+                                                      "poor"),
+                           ordered=TRUE)
+outcomesCat$n92F
+outcomesCat <- subset(outcomesCat, select=-c(n92))
+
+
+##n383 mispronounced words (age 7)
+hist(outcomesCat$n383)
+describe((outcomesCat$n383))
+quantile(na.omit(outcomesCat$n383), c(0.25,0.5,0.75))
+length(which(outcomesCat$n383==0))/length(outcomesCat$n383)
+length(which(with(outcomesCat, n383>0 & n383<=3)))/length(outcomesCat$n383)
+length(which(outcomesCat$n383>3))/length(outcomesCat$n383)
+length(which(is.na(outcomesCat$n383)))/length(outcomesCat$n383)
+
+outcomesCat$n383F <- outcomesCat$n383
+
+for(i in (1:length(outcomesCat$n383))) {
+  if(is.na(outcomesCat$n383[i])){
+    outcomesCat$n383F[i]<-NA
+  } else {
+    if(outcomesCat$n383[i]==0){
+      outcomesCat$n383F[i]="great"
+    } else {
+      if(with(outcomesCat, n383[i]>0 & n383[i]<=3)){
+        outcomesCat$n383F[i]="average"
+      } else {
+        if(outcomesCat$n383[i]>=4){
+          outcomesCat$n383F[i]="poor"
+        }
+      }
+    }
+  }
+}
+
+outcomesCat$n383F <- factor(outcomesCat$n383F, levels=c("great",
+                                                        "average",
+                                                        "poor"),
+                            ordered=TRUE)
+outcomesCat$n383F
+outcomesCat <- subset(outcomesCat, select=-c(n383))
+
+
+##n1548/n1551 misheard words right/left ear
+#average across ears
+outcomesCat$n154851 <- outcomesCat$n1548
+for(i in (1:length(outcomesCat$n1548))){
+  if(with(outcomesCat, is.na(n1548[i])==TRUE & is.na(n1551[i])==TRUE)){
+    outcomesCat$n154851[i]<-NA
+  } else {
+    if(with(outcomesCat, is.na(n1548[i])==FALSE & is.na(n1551[i])==TRUE)){
+      outcomesCat$n154851[i] = outcomesCat$n1548[i]
+    } else {
+      if(with(outcomesCat, is.na(n1548[i])==TRUE & is.na(n1551[i])==FALSE)){
+        outcomesCat$n154851[i] = outcomesCat$n1551[i]
+      } else {
+        if(with(outcomesCat, is.na(n1548[i])==FALSE & is.na(n1551[i])==FALSE)){
+          outcomesCat$n154851[i] = (outcomesCat$n1548[i] +
+                                      outcomesCat$n1551[i])/2
+        }
+      }
+    }
+  }
+}
+
+outcomesCat <- subset(outcomesCat, select=-c(n1548,n1551))
+hist(outcomesCat$n154851)
+describe(outcomesCat$n154851)
+table(outcomesCat$n154851)
+quantile(na.omit(outcomesCat$n154851), c(0.5,0.7))
+length(which(outcomesCat$n154851==0))/length(outcomesCat$n154851)
+length(which(with(outcomesCat, n154851>0 & n154851<2)))/length(outcomesCat$n154851)
+length(which(outcomesCat$n154851>=2))/length(outcomesCat$n154851)
+length(which(is.na(outcomesCat$n154851)))/length(outcomesCat$n154851)
+
+outcomesCat$n154851F <- outcomesCat$n154851
+
+for(i in (1:length(outcomesCat$n154851))) {
+  if(is.na(outcomesCat$n154851[i])){
+    outcomesCat$n154851F[i]<-NA
+  } else {
+    if(outcomesCat$n154851[i]==0){
+      outcomesCat$n154851F[i]="great"
+    } else {
+      if(with(outcomesCat, n154851[i]>0 & n154851[i]<2)){
+        outcomesCat$n154851F[i]="average"
+      } else {
+        if(outcomesCat$n154851[i]>=2){
+          outcomesCat$n154851F[i]="poor"
+        }
+      }
+    }
+  }
+}
+
+outcomesCat$n154851F <- factor(outcomesCat$n154851F, levels=c("great",
+                                                              "average",
+                                                              "poor"),
+                               ordered=TRUE)
+outcomesCat$n154851F
+outcomesCat <- subset(outcomesCat, select=-c(n154851))
+
+
+##n923, reading comprehension score (age 11)
+#scores 0-35, sentence completion task (Shepherd 2012)
+hist(outcomesCat$n923)
+describe(outcomesCat$n923)
+quantile(na.omit(outcomesCat$n923), c(0.25,0.5,0.75))
+length(which(outcomesCat$n923<10))/length(outcomesCat$n923)
+length(which(with(outcomesCat, n923>=10 & n923<=22)))/length(outcomesCat$n923)
+length(which(outcomesCat$n923>22))/length(outcomesCat$n923)
+
+outcomesCat$n923F <- outcomesCat$n923
+
+for(i in (1:length(outcomesCat$n923))) {
+  if(is.na(outcomesCat$n923[i])){
+    outcomesCat$n923F[i]<-NA
+  } else {
+    if(outcomesCat$n923[i]>22){
+      outcomesCat$n923F[i]="great"
+    } else {
+      if(with(outcomesCat, n923[i]>=10 & n923[i]<=22)){
+        outcomesCat$n923F[i]="average"
+      } else {
+        if(outcomesCat$n923[i]<10){
+          outcomesCat$n923F[i]="poor"
+        }
+      }
+    }
+  }
+}
+
+outcomesCat$n923F <- factor(outcomesCat$n923F, levels=c("great",
+                                                        "average",
+                                                        "poor"),
+                            ordered=TRUE)
+outcomesCat$n923F
+outcomesCat <- subset(outcomesCat, select=-c(n923))
+
+
+##n1543 mispronounced words (age 11)
+hist(outcomesCat$n1543)
+describe(outcomesCat$n1543)
+table(outcomesCat$n1543)
+length(which(outcomesCat$n1543==0))/length(outcomesCat$n1543)
+length(which(with(outcomesCat, n1543>0 & n1543<=2)))/length(outcomesCat$n1543)
+length(which(outcomesCat$n1543>2))/length(outcomesCat$n1543)
+length(which(is.na(outcomesCat$n1543)))/length(outcomesCat$n1543)
+
+outcomesCat$n1543F <- outcomesCat$n1543
+
+for(i in (1:length(outcomesCat$n1543))) {
+  if(is.na(outcomesCat$n1543[i])){
+    outcomesCat$n1543F[i]<-NA
+  } else {
+    if(outcomesCat$n1543[i]==0){
+      outcomesCat$n1543F[i]="great"
+    } else {
+      if(with(outcomesCat, n1543[i]>0 & n1543[i]<=2)){
+        outcomesCat$n1543F[i]="average"
+      } else {
+        if(outcomesCat$n1543[i]>2){
+          outcomesCat$n1543F[i]="poor"
+        }
+      }
+    }
+  }
+}
+
+outcomesCat$n1543F <- factor(outcomesCat$n1543F, levels=c("great",
+                                                          "average",
+                                                          "poor"),
+                             ordered=TRUE)
+outcomesCat$n1543F
+outcomesCat <- subset(outcomesCat, select=-c(n1543))
+
+
+##n914 general ability--verbal (age 11)
+hist(outcomesCat$n914)
+describe(outcomesCat$n914)
+quantile(na.omit(outcomesCat$n914), c(0.166,0.833))
+length(which(outcomesCat$n914<12))/length(outcomesCat$n914)
+length(which(with(outcomesCat, n914>=12 & n914<=32)))/length(outcomesCat$n914)
+length(which(outcomesCat$n914>32))/length(outcomesCat$n914)
+
+outcomesCat$n914F <- outcomesCat$n914
+
+for(i in (1:length(outcomesCat$n914))) {
+  if(is.na(outcomesCat$n914[i])){
+    outcomesCat$n914F[i]<-NA
+  } else {
+    if(outcomesCat$n914[i]>32){
+      outcomesCat$n914F[i]="great"
+    } else {
+      if(with(outcomesCat, n914[i]>=12 & n914[i]<=32)){
+        outcomesCat$n914F[i]="average"
+      } else {
+        if(outcomesCat$n914[i]<12){
+          outcomesCat$n914F[i]="poor"
+        }
+      }
+    }
+  }
+}
+
+outcomesCat$n914F <- factor(outcomesCat$n914F, levels=c("great",
+                                                        "average",
+                                                        "poor"),
+                            ordered=TRUE)
+outcomesCat$n914F
+outcomesCat <- subset(outcomesCat, select=-c(n914))
+
+
+
+##n917 general ability--non verbal (age 11)
+hist(outcomesCat$n917)
+describe(outcomesCat$n917)
+quantile(na.omit(outcomesCat$n917), c(0.166,0.833))
+length(which(outcomesCat$n917<14))/length(outcomesCat$n917)
+length(which(with(outcomesCat, n917>=14 & n917<=29)))/length(outcomesCat$n917)
+length(which(outcomesCat$n917>29))/length(outcomesCat$n917)
+
+outcomesCat$n917F <- outcomesCat$n917
+
+for(i in (1:length(outcomesCat$n917))) {
+  if(is.na(outcomesCat$n917[i])){
+    outcomesCat$n917F[i]<-NA
+  } else {
+    if(outcomesCat$n917[i]>29){
+      outcomesCat$n917F[i]="great"
+    } else {
+      if(with(outcomesCat, n917[i]>=14 & n917[i]<=29)){
+        outcomesCat$n917F[i]="average"
+      } else {
+        if(outcomesCat$n917[i]<14){
+          outcomesCat$n917F[i]="poor"
+        }
+      }
+    }
+  }
+}
+
+outcomesCat$n917F <- factor(outcomesCat$n917F, levels=c("great",
+                                                        "average",
+                                                        "poor"),
+                            ordered=TRUE)
+outcomesCat$n917F
+outcomesCat <- subset(outcomesCat, select=-c(n917))
+
+
+
+#### LCA ############################################################
+library(poLCA)
+
+outcomesCat <- droplevels(outcomesCat)
+f1 <- as.formula(cbind(n88,n89,n385,n386,n226,n68,n879,n884,n885,n1544,
+                       n1268,n1270,n92F,n383F,n154851F,n923F,n1543F,
+                       n914F,n917F) ~ 1)
+
+LCA1 <- poLCA(formula=f1, data=outcomesCat, nclass=1)
+LCA2 <- poLCA(formula=f1, data=outcomesCat, nclass=2)
+LCA3 <- poLCA(formula=f1, data=outcomesCat, nclass=3)
+LCA4 <- poLCA(formula=f1, data=outcomesCat, nclass=4)
+LCA5 <- poLCA(formula=f1, data=outcomesCat, nclass=5)
+LCA6 <- poLCA(formula=f1, data=outcomesCat, nclass=6)
+
+
+#Compare statistical fit of models
+list(LCA1$bic, LCA2$bic, LCA3$bic, LCA4$bic, LCA5$bic, LCA6$bic)
+bic_list <- as.numeric(list(LCA1$bic, LCA2$bic, LCA3$bic, LCA4$bic, 
+                            LCA5$bic, LCA6$bic))
+bic_list
+plot(x=as.numeric(1:6), bic_list, ylim=c(160000,200000),
+     xlab="Number of latent classes", ylab="Model BIC")
+classes=(1:6)
+bicdata <- data.frame(cbind(classes, bic_list))
+
+
+library(ggplot2)
+elbowplot <- ggplot(data=bicdata, aes(x=classes,y=bic_list)) +
+  geom_bar(stat="identity") + coord_cartesian(ylim=c(160000,200000)) +
+  scale_x_continuous(breaks=seq(1,6,by=1)) +
+  labs(x="Number of classes", y="Model BIC")
+elbowplot
+
+#Pick 4-class model and add predictors
+
+
+#### LCR with categorised outcomes, and predictors ##################
+outcomesCat <- droplevels(outcomesCat)
+predictors <- droplevels(predictors)
+
+bigdata <- cbind(outcomesCat, predictors)
+f2 <- as.formula(cbind(n88,n89,n385,n386,n226,n68,n879,n884,n885,n1544,
+                       n1268,n1270,n92F,n383F,n154851F,n923F,n1543F,
+                       n914F,n917F) ~ n492 + n537 + n660 + 
+                   n497F +
+                   n186 + n187 + n622 +
+                   n179 + n180)
+
+LCA4 <- poLCA(formula=f2, data=bigdata, nclass=4)
+probs.start.new <- poLCA.reorder(LCA4$probs.start, 
+                                 order(LCA4$P, decreasing=TRUE))
+LCA4 <- poLCA(formula=f2, data=bigdata, nclass=4, 
+              probs.start=probs.start.new)
